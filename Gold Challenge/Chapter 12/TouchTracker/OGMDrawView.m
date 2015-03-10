@@ -167,12 +167,18 @@
 
 - (void)drawRect:(CGRect)rect
 {
-    // Draw finished lines in black
-    [[UIColor blackColor] set];
+
     for (OGMLine *line in self.finishedLines){
+        float xDiff = line.end.x - line.begin.x;
+        float yDiff = line.end.y - line.begin.y;
+        float angle = fabs(atan2(yDiff,xDiff) * (180 / M_PI));
+        float colorSet = fabs((angle-100.0)/100.0);
+        [[UIColor colorWithHue:colorSet saturation:1.0 brightness:1.0 alpha:1.0]set];
         [self strokeLine:line];
     }
     
+    // Draw finished circles in black
+    [[UIColor blackColor] set];
     for (OGMCircle *circle in self.finishedCircles)
     {
         [self strokeCircle:circle];
