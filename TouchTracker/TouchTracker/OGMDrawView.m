@@ -9,8 +9,9 @@
 #import "OGMDrawView.h"
 #import "OGMLine.h"
 
-@interface OGMDrawView ()
+@interface OGMDrawView () <UIGestureRecognizerDelegate>
 
+@property (nonatomic, strong) UIPanGestureRecognizer *moveRecognizer;
 @property (nonatomic, strong) NSMutableDictionary *linesInProgress;
 @property (nonatomic, strong) NSMutableArray *finishedLines;
 
@@ -42,9 +43,14 @@
         [tapRecognizer requireGestureRecognizerToFail:doubleTapRecognizer];
         [self addGestureRecognizer:tapRecognizer];
         
-        UITapGestureRecognizer *pressRecognizer =
+        UILongPressGestureRecognizer *pressRecognizer =
             [[UILongPressGestureRecognizer alloc]initWithTarget:self action:@selector(longPress:)];
         [self addGestureRecognizer:pressRecognizer];
+        
+        self.moveRecognizer = [[UIPanGestureRecognizer alloc]initWithTarget:self action:@selector(moveLine:)];
+        self.moveRecognizer.delegate = self;
+        self.moveRecognizer.cancelsTouchesInView = NO;
+        [self addGestureRecognizer:self.moveRecognizer];
     }
     
     return self;
@@ -104,6 +110,37 @@
         self.selectedLine = nil;
     }
     [self setNeedsDisplay];
+}
+
+- (void)moveLine:(UIPanGestureRecognizer *)gr
+{
+    // If we have not selected a line, we do not do anything here
+    if(!self.selectedLine){
+        return;
+    }
+    
+    // When the pan recognizer changes its position...
+    if(gr.state == UIGestureRecognizerStateChanged){
+        // How far has the pan moved?
+        CGPoint translation = [gr translationInView:self];
+        
+        // Add the translation to the current beginning and end points of the line
+        CGPoint begin = self.selectedLine.begin;
+        CGPoint end = self.selectedLine.end;
+        begin.x += translation.x;
+        begin.y += translation.y;
+        end.x += translation.x;
+        end.y += translation.y;
+        
+        // Set the new beginning and end point of the line
+        self.selectedLine.begin = begin;
+        self.selectedLine.end = end;
+        
+        // Redraw the screen
+        [self setNeedsDisplay];
+        
+        [gr setTranslation:CGPointZero inView:self]; // Reset numbers, set update from last point
+    }
 }
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
@@ -190,7 +227,7 @@
         // Check a few points on the line
         for (float t = 0.0; t <= 1.0; t += 0.05){
             float x = start.x + t * (end.x - start.x);
-            float y = end.x + t * (end.y - start.y);
+            float y = start.y + t * (end.y - start.y);
             
             // If the tapped point is within 20 points, let's return this line
             if(hypot(x - p.x, y - p.y) < 20.0){
@@ -235,6 +272,14 @@
 - (BOOL)canBecomeFirstResponder
 {
     return YES;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+{
+    if(gestureRecognizer == self.moveRecognizer){
+        return  YES;
+    }
+    return NO;
 }
 
 @end
